@@ -1,0 +1,10 @@
+{"userId":"4","date":"2026-10-01","text":"2 hours on the rack mount server today","kind":"update","workPackageId":82,"hours":2}
+{"userId":"4","date":"2026-10-01","text":"spent 1.5h migrating share permissions yesterday","kind":"update","workPackageId":84,"hours":1.5}
+{"userId":"4","date":"2026-10-01","text":"45 minutes setting up the conference website","kind":"update","workPackageId":8,"hours":0.75}
+{"userId":"4","date":"2026-10-01","text":"worked 3 hours on the new website","kind":"update","workPackageId":17,"hours":3}
+{"userId":"4","date":"2026-10-01","text":"log 2h on #84","kind":"update","workPackageId":84,"hours":2}
+{"userId":"4","date":"2026-10-01","text":"2 hours on the rack mount server, everything is mounted and cabled","kind":"update","workPackageId":82,"hours":2}
+{"userId":"4","date":"2026-10-01","text":"did some work on the conference","kind":"clarify"}
+{"userId":"4","date":"2026-10-01","text":"what is the weather like tomorrow?","kind":"unrelated"}
+{"userId":"4","date":"2026-10-01","text":"set the migrate shares task to closed","kind":"update","workPackageId":84,"statusName":"Closed"}
+{"userId":"4","date":"2026-10-01","text":"2 hours of development on the new website today","kind":"update","workPackageId":17,"hours":2,"activityId":3}

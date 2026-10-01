@@ -9,6 +9,9 @@ const VALUE_FLAGS = new Set([
   "user",
   "base-url",
   "display-name",
+  "file",
+  "provider",
+  "model",
 ]);
 
 export function parseArgs(argv: string[]): ParsedArgs {

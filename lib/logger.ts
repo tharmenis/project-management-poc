@@ -16,14 +16,23 @@ const REDACT_PATHS = [
   "headers.cookie",
 ];
 
+const redaction: { paths: string[]; censor: string } = {
+  paths: REDACT_PATHS,
+  censor: "[redacted]",
+};
+
 let logger: Logger | undefined;
 
 export function getLogger(): Logger {
   if (!logger) {
-    logger = pino({
-      level: getConfig().LOG_LEVEL,
-      redact: { paths: REDACT_PATHS, censor: "[redacted]" },
-    });
+    logger = pino({ level: getConfig().LOG_LEVEL, redact: redaction });
   }
   return logger;
+}
+
+export function createFileLogger(dest: string): Logger {
+  return pino(
+    { level: getConfig().LOG_LEVEL, redact: redaction },
+    pino.destination({ dest, mkdir: true }),
+  );
 }

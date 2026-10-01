@@ -1,37 +1,12 @@
 import type { OpenProjectClient } from "./client";
+import { hoursToIso8601 } from "./durations";
+import { extractAllowedValues, type OpAllowedValue } from "./forms";
 import type { HalResource } from "./hal";
 
-export interface OpActivity {
-  id: number;
-  name: string;
-}
+export type OpActivity = OpAllowedValue;
 
-/**
- * Allowed time-entry activities come from the form endpoint's schema. The exact
- * response shape varies by OpenProject version (see the handover's live-verification
- * list), so this reads allowed values from either the embedded array or the link.
- */
 export function extractActivities(form: HalResource): OpActivity[] {
-  const schema = (form._embedded?.schema ?? {}) as HalResource;
-  const activity = schema.activity as HalResource | undefined;
-  if (!activity) return [];
-
-  const embedded = activity._embedded?.allowedValues;
-  const linked = activity._links?.allowedValues;
-  const raw = Array.isArray(embedded) ? embedded : Array.isArray(linked) ? linked : [];
-
-  return (raw as Record<string, unknown>[])
-    .map(toActivity)
-    .filter((activity): activity is OpActivity => activity !== undefined);
-}
-
-function toActivity(value: Record<string, unknown>): OpActivity | undefined {
-  const href = typeof value.href === "string" ? value.href : undefined;
-  const id = href ? Number(href.split("/").pop()) : Number(value.id);
-  if (!Number.isInteger(id)) return undefined;
-
-  const name = value.title ?? value.name;
-  return { id, name: typeof name === "string" ? name : `Activity ${id}` };
+  return extractAllowedValues(form, "activity");
 }
 
 export async function listTimeEntryActivities(
@@ -43,4 +18,39 @@ export async function listTimeEntryActivities(
     : {};
   const form = await client.request<HalResource>("POST", "/time_entries/form", { body });
   return extractActivities(form);
+}
+
+export interface CreateTimeEntryInput {
+  workPackageId: number;
+  activityId: number;
+  hours: number;
+  spentOn: string;
+  comment?: string;
+}
+
+export async function createTimeEntry(
+  client: OpenProjectClient,
+  input: CreateTimeEntryInput,
+): Promise<{ id: number }> {
+  const body: Record<string, unknown> = {
+    _links: {
+      workPackage: { href: `/api/v3/work_packages/${input.workPackageId}` },
+      activity: { href: `/api/v3/time_entries/activities/${input.activityId}` },
+    },
+    hours: hoursToIso8601(input.hours),
+    spentOn: input.spentOn,
+  };
+  if (input.comment) body.comment = { raw: input.comment };
+
+  const created = await client.request<HalResource & { id: number }>("POST", "/time_entries", {
+    body,
+  });
+  return { id: Number(created.id) };
+}
+
+export async function deleteTimeEntry(
+  client: OpenProjectClient,
+  timeEntryId: number,
+): Promise<void> {
+  await client.request<void>("DELETE", `/time_entries/${timeEntryId}`);
 }

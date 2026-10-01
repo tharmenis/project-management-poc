@@ -102,6 +102,18 @@ describe("OpenProject error mapping", () => {
     expect(botMessageForError(error)).toBe(message);
   });
 
+  it("reports the status code for an unmapped response", async () => {
+    server.use(
+      http.patch(`${BASE}/api/v3/activities/1`, () => new HttpResponse(null, { status: 405 })),
+    );
+
+    const error = await client()
+      .request("PATCH", "/activities/1", { body: {} })
+      .catch((caught: unknown) => caught);
+
+    expect(botMessageForError(error)).toContain("405");
+  });
+
   it("surfaces OpenProject's own validation message for 422", async () => {
     server.use(
       http.post(`${BASE}/api/v3/time_entries`, () =>

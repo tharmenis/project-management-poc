@@ -68,7 +68,7 @@ export function botMessageForError(error: unknown): string {
       case "unavailable":
         return "OpenProject isn't reachable right now; nothing was saved.";
       default:
-        return "OpenProject returned an unexpected error; nothing was saved.";
+        return `OpenProject returned an unexpected response (HTTP ${error.status}); nothing was saved.`;
     }
   }
 

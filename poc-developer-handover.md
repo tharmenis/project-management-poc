@@ -445,9 +445,15 @@ The PoC is ready for the pilot when all of these pass on the sandbox project wit
 
 These details depend on the installed OpenProject version. Check each one early, adjust the code, and record the result here.
 
-- [ ] Exact name and operator of the OpenProject filter for "dates overlap a range" (likely `datesInterval`), checked in the instance's interactive API docs.
-- [ ] Whether `PATCH /activities/{id}` can edit a comment with the user's token, for comment undo.
-- [ ] Whether the billable custom field on time entries is required, and if so, its default per activity.
-- [ ] Request body and response shape of `POST /time_entries/form` and `POST /work_packages/{id}/form` on this version.
-- [ ] Network: the dev machine can reach OpenProject over HTTPS; for the pilot, users' browsers can reach the app on the LAN.
-- [ ] Sandbox project, pilot user accounts with tokens, and the MSP activity types exist in OpenProject.
+- [x] Exact name and operator of the OpenProject filter for "dates overlap a range" (likely `datesInterval`), checked in the instance's interactive API docs.
+  **Result:** it is `datesInterval` with operator `<>d`. Combined with `assignee = me` and `status o` it returned the expected open work packages for the window.
+- [x] Whether `PATCH /activities/{id}` can edit a comment with the user's token, for comment undo.
+  **Result:** it cannot — the instance answers **HTTP 400**. Comment undo therefore marks the note as retracted by posting a new comment ("Retracted by the author via chat bot") and reports that instead of "reversed" (see `lib/bot/undo.ts`).
+- [x] Whether the billable custom field on time entries is required, and if so, its default per activity.
+  **Result:** not required. `POST /time_entries` created an entry from `workPackage`, `activity`, `hours` and `spentOn` alone, with no custom fields (project 37, "Acme – File server installation").
+- [x] Request body and response shape of `POST /time_entries/form` and `POST /work_packages/{id}/form` on this version.
+  **Result:** activities are at `_embedded.schema.activity._links.allowedValues`, allowed statuses at `_embedded.schema.status._links.allowedValues`, both arrays of `{ href, title }`. `lib/openproject/forms.ts` reads either the embedded array or the link.
+- [x] Network: the dev machine can reach OpenProject over HTTPS; for the pilot, users' browsers can reach the app on the LAN.
+  **Result:** the instance is plain **HTTP on `http://localhost:8080`**, not HTTPS. The app was run with `next build` + `next start`, bound to `*:3000`, and answered on the LAN at `http://10.10.11.216:3000/api/health`.
+- [x] Sandbox project, pilot user accounts with tokens, and the MSP activity types exist in OpenProject.
+  **Result:** the Demo project, the Scrum project and "Acme – File server installation" exist, and a token was linked successfully. Two corrections: the activity types are Management, Specification, Development, Testing, Support and Other — **not** the On-site / Remote / Travel the design assumed; and the Scrum project (id 2) returns **403** for `POST /time_entries/form` to this user, so its activities are skipped when building context. Project ids: Demo = 1, Scrum = 2, Acme – File server installation = 37.
