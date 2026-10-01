@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(node --version && echo \"pnpm: $(pnpm --version)\" && echo \"npx: $(npx --version)\")",
+      "Shell(openssl:*)",
+      "Shell(pnpm:*)",
+      "Shell(node -e const D=require('better-sqlite3'); const db=new D(':memory:'); db.exec('create table t(a)'); db.prepare('insert into t values (?)').run(1); console.log('better-sqlite3 OK', db.prepare('select count(*) c from t').get());)",
+      "Shell(rm:*)",
+      "Shell(node -e const D=require('better-sqlite3'); const db=new D('./data/bot.db'); console.log(db.prepare(\"select name from sqlite_master where type='table' order by name\").all().map(r=>r.name).join(', '));)",
+      "Shell(node -e \"const D=require('better-sqlite3'); const db=new D('./data/bot.db'); console.log('tables:', db.prepare(\\\"select name from sqlite_master where type='table' order by name\\\").all().map(r=>r.name).join(', '));\")",
+      "Shell(curl -s -o /dev/null -w HTTP %{http_code}\\n http://localhost:3000/)",
+      "Shell(curl -s http://localhost:3000/)",
+      "Shell(grep:*)",
+      "Shell(curl -s -m 5 -o /dev/null -w 8080: HTTP %{http_code}\\n http://localhost:8080/)",
+      "Shell(curl -s -m 5 -o /dev/null -w 8080 api: HTTP %{http_code}\\n http://localhost:8080/api/v3)",
+      "Shell(docker:*)",
+      "Shell(echo:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

@@ -1,0 +1,27 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# next.js
+.next
+out
+build
+next-env.d.ts
+
+# env and secrets
+.env
+.env.local
+.env.*.local
+
+# database and local data
+data/
+
+# logs
+*.log
+logs/
+
+# testing
+coverage
+
+# os / editor
+.DS_Store
