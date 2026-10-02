@@ -1,20 +1,32 @@
 import { getConfig, type Config } from "@/lib/config";
 import { shiftIsoDate, todayInZone, weekdayLabel } from "@/lib/dates";
 import type { OpenProjectClient } from "@/lib/openproject/client";
+import { OpenProjectError } from "@/lib/openproject/errors";
 import { listStatuses } from "@/lib/openproject/statuses";
 import { listTimeEntryActivities, type OpActivity } from "@/lib/openproject/timeEntries";
-import { OpenProjectError } from "@/lib/openproject/errors";
 import { listCandidateWorkPackages } from "@/lib/openproject/workPackages";
 import type { PromptContext } from "@/lib/llm/prompt";
+import { getRecentWorkPackage } from "./proposals";
+import { applyFocus, rankCandidates, resolveFocus, type Focus } from "./relevance";
 
 const MAX_CANDIDATES = 30;
 const MAX_ACTIVITY_PROJECTS = 5;
 
+export interface BuildContextOptions {
+  config?: Config;
+  now?: Date;
+  /** Enables remembering the work package from the previous message. */
+  userId?: string;
+  /** The user's message, used to rank and narrow the candidates. */
+  message?: string;
+}
+
 export async function buildContext(
   client: OpenProjectClient,
-  config: Config = getConfig(),
-  now: Date = new Date(),
+  options: BuildContextOptions = {},
 ): Promise<PromptContext> {
+  const config = options.config ?? getConfig();
+  const now = options.now ?? new Date();
   const today = todayInZone(config.APP_TIMEZONE, now);
   const from = shiftIsoDate(today, -config.CANDIDATE_DAYS_BACK);
   const to = shiftIsoDate(today, config.CANDIDATE_DAYS_AHEAD);
@@ -26,7 +38,7 @@ export async function buildContext(
     pageSize: 50,
   });
 
-  const candidates = workPackages.slice(0, MAX_CANDIDATES).map((workPackage) => ({
+  const all = workPackages.slice(0, MAX_CANDIDATES).map((workPackage) => ({
     id: workPackage.id,
     subject: workPackage.subject,
     projectId: workPackage.projectId,
@@ -36,6 +48,13 @@ export async function buildContext(
     startDate: workPackage.startDate,
     dueDate: workPackage.dueDate,
   }));
+
+  const memory = options.userId
+    ? getRecentWorkPackage(options.userId, config.CONTEXT_MEMORY_MINUTES, now)
+    : undefined;
+
+  const focus = options.message ? resolveFocus(options.message, all, memory) : undefined;
+  const candidates = applyFocus(rankCandidates(all, options.message), focus);
 
   const projectIds = [
     ...new Set(
@@ -56,7 +75,29 @@ export async function buildContext(
     candidates,
     activities: activityGroups,
     statusNames: statuses.map((status) => status.name),
+    memory: memory
+      ? { id: memory.id, subject: memory.subject, projectName: memory.projectName }
+      : undefined,
+    focus: describeFocus(focus, candidates),
   };
+}
+
+function describeFocus(
+  focus: Focus | undefined,
+  candidates: PromptContext["candidates"],
+): PromptContext["focus"] {
+  if (!focus) return undefined;
+
+  if (focus.workPackageId !== undefined) {
+    const candidate = candidates.find((entry) => entry.id === focus.workPackageId);
+    return candidate ? { workPackageId: candidate.id, projectName: candidate.projectName } : undefined;
+  }
+
+  if (focus.projectId !== undefined) {
+    return { projectName: candidates[0]?.projectName };
+  }
+
+  return undefined;
 }
 
 async function loadActivities(

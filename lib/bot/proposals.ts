@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db/client";
 import { proposals, type Proposal as ProposalRow } from "@/lib/db/schema";
 import type { OpWorkPackage } from "@/lib/openproject/workPackages";
 import type { ProposalOutput } from "@/lib/llm/schema";
+import type { RecentWorkPackage } from "./relevance";
 import type { Channel } from "./types";
 
 export type { ProposalRow };
@@ -81,6 +82,49 @@ export function resolveProposal(
 
 export function readCandidates(row: ProposalRow): OpWorkPackage[] {
   return (row.candidatesJson ?? []) as OpWorkPackage[];
+}
+
+/**
+ * The work package from the user's most recent proposal, whatever its status: a
+ * cancelled or executed proposal is still useful context for the next message.
+ */
+export function getRecentWorkPackage(
+  userId: string,
+  withinMinutes: number,
+  now: Date = new Date(),
+): RecentWorkPackage | undefined {
+  const cutoff = new Date(now.getTime() - withinMinutes * 60_000).toISOString();
+
+  const rows = getDb()
+    .select()
+    .from(proposals)
+    .where(eq(proposals.userId, userId))
+    .orderBy(desc(proposals.createdAt))
+    .limit(10)
+    .all();
+
+  for (const row of rows) {
+    if (row.createdAt < cutoff) break;
+
+    const workPackageId = readWorkPackageId(row);
+    if (workPackageId === undefined) continue;
+
+    const candidate = readCandidates(row).find((entry) => entry.id === workPackageId);
+    return {
+      id: workPackageId,
+      subject: candidate?.subject ?? `#${workPackageId}`,
+      projectId: candidate?.projectId,
+      projectName: candidate?.projectName,
+    };
+  }
+
+  return undefined;
+}
+
+function readWorkPackageId(row: ProposalRow): number | undefined {
+  const proposal = row.proposalJson as { workPackageId?: unknown } | null;
+  const value = proposal?.workPackageId;
+  return typeof value === "number" && Number.isInteger(value) ? value : undefined;
 }
 
 export function readProposal<T = ProposalOutput>(row: ProposalRow): T {

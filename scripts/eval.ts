@@ -43,7 +43,10 @@ async function main() {
 
     try {
       const client = clientForUser(user);
-      const context = await buildContext(client, config, referenceDate(example.date));
+      const context = await buildContext(client, {
+        config,
+        now: referenceDate(example.date),
+      });
       const output = await propose(context, example.text, { override: { provider, model } });
       results.push({ example, output, results: compareOutput(example, output) });
       process.stdout.write(".");

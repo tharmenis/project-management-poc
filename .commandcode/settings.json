@@ -32,7 +32,8 @@
       "Shell(ss:*)",
       "Shell(curl -s -m 5 -w  [HTTP %{http_code}]\\n http://localhost:3000/api/health)",
       "Shell(curl -s -m 5 -w  [HTTP %{http_code}]\\n http://10.10.11.216:3000/api/health)",
-      "Shell(curl -s -m 5 -o /dev/null -w HTTP %{http_code} -> %{redirect_url}\\n http://10.10.11.216:3000/)"
+      "Shell(curl -s -m 5 -o /dev/null -w HTTP %{http_code} -> %{redirect_url}\\n http://10.10.11.216:3000/)",
+      "Shell(node -e \"const D=require('better-sqlite3');const db=new D('./data/bot.db');console.table(db.prepare(\\\"select id,payload_json from audit_log where event='clarification_asked' order by id desc limit 5\\\").all())\")"
     ],
     "deny": [],
     "defaultMode": "default"

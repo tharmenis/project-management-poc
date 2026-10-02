@@ -34,6 +34,7 @@ export const envSchema = z.object({
   DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
   PROPOSAL_TTL_MINUTES: z.coerce.number().int().positive().default(10),
   UNDO_WINDOW_MINUTES: z.coerce.number().int().positive().default(30),
+  CONTEXT_MEMORY_MINUTES: z.coerce.number().int().positive().default(30),
   CANDIDATE_DAYS_BACK: z.coerce.number().int().nonnegative().default(7),
   CANDIDATE_DAYS_AHEAD: z.coerce.number().int().nonnegative().default(1),
   MAX_DAYS_BACK_FOR_TIME: z.coerce.number().int().nonnegative().default(7),

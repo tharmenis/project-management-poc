@@ -32,13 +32,32 @@ export async function runFreeText(
   const config = getConfig();
   const client = clientForUser(user);
 
+  // If we asked a clarifying question last turn, tell the model the user is
+  // answering it.
+  const open = getOpenProposal(ctx.userId);
+  const pendingQuestion =
+    open?.status === "clarifying"
+      ? readProposal<ProposalOutput>(open).clarification?.question
+      : undefined;
+
   cancelOpenProposals(ctx.userId);
 
-  const context = await buildContext(client, config);
+  const answerHint = pendingQuestion
+    ? `You previously asked the user: "${pendingQuestion}". Treat their message as the answer to that question.`
+    : undefined;
+
+  const context = await buildContext(client, {
+    config,
+    userId: ctx.userId,
+    // The hint pins the focus when the user picked an option by number.
+    message: [text, hint, answerHint].filter(Boolean).join("\n"),
+  });
 
   let output: ProposalOutput;
   try {
-    output = await propose(context, text, { hint });
+    output = await propose(context, text, {
+      hint: [hint, answerHint].filter(Boolean).join("\n") || undefined,
+    });
   } catch (error) {
     recordAudit({
       event: "error",
@@ -100,11 +119,27 @@ export async function runFreeText(
 
   const validation = await validateProposal({ client, context, config, output });
   if (!validation.ok) {
+    // Keep the turn open with the question we asked, so the answer can be read
+    // as an answer rather than as a new message, and the work package the model
+    // understood is remembered.
+    createProposal({
+      userId: ctx.userId,
+      channel: ctx.channel,
+      originalMessage: text,
+      candidates: context.candidates,
+      proposal: {
+        ...output,
+        clarification: { question: validation.message, optionWorkPackageIds: [] },
+      },
+      status: "clarifying",
+      ttlMinutes: config.PROPOSAL_TTL_MINUTES,
+    });
+
     recordAudit({
       event: "clarification_asked",
       userId: ctx.userId,
       channel: ctx.channel,
-      payload: { reason: "validation" },
+      payload: { reason: "validation", workPackageId: output.workPackageId },
       error: validation.message,
     });
     return [{ text: validation.message }];
@@ -130,7 +165,10 @@ export async function runFreeText(
   return confirmationReplies(context, validation.proposal, config.APP_TIMEZONE);
 }
 
-export async function selectOption(ctx: MessageContext, index: number): Promise<BotReply[]> {
+export async function selectOption(
+  ctx: MessageContext,
+  index: number,
+): Promise<BotReply[] | undefined> {
   const open = getOpenProposal(ctx.userId);
   if (!open || open.status !== "clarifying") {
     return [{ text: nothingToChooseText }];
@@ -138,8 +176,13 @@ export async function selectOption(ctx: MessageContext, index: number): Promise<
 
   const plan = readProposal<ProposalOutput>(open);
   const optionIds = plan.clarification?.optionWorkPackageIds ?? [];
-  const chosen = optionIds[index - 1];
 
+  // A clarification can also be a follow-up question (which activity? which
+  // date?). A number is not an answer to those, so let the message fall through
+  // to the proposal flow instead of claiming it was a bad choice.
+  if (optionIds.length === 0) return undefined;
+
+  const chosen = optionIds[index - 1];
   if (chosen === undefined) {
     return [{ text: selectionInvalidText(optionIds.length) }];
   }

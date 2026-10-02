@@ -13,6 +13,10 @@ export interface PromptContext {
   }[];
   activities: { id: number; name: string; projectId?: number; projectName?: string }[];
   statusNames: string[];
+  /** The work package from the user's previous message, if it is recent enough. */
+  memory?: { id: number; subject: string; projectName?: string };
+  /** Set when the message named a project, or referred back to a previous task. */
+  focus?: { workPackageId?: number; projectName?: string };
 }
 
 export function buildSystemPrompt(): string {
@@ -23,6 +27,8 @@ export function buildSystemPrompt(): string {
     "Rules:",
     "- Use only work package IDs and activity IDs from the provided context. Never invent an ID.",
     '- If no candidate clearly matches, or two are equally plausible, return kind "clarify" with up to three option work package IDs and a short question.',
+    "- Keep every option in a clarification within the same project.",
+    '- If the message refers back to the task just discussed ("that", "it", "same", "again"), use the recently discussed work package.',
     "- If the activity cannot be inferred, set activityId to null.",
     '- Resolve relative dates ("yesterday", "Monday") against the given today. Default to today.',
     "- Write the note as a clean work note in the user's own language. Keep every fact and add none.",
@@ -56,6 +62,7 @@ export function buildUserPrompt(context: PromptContext, text: string, hint?: str
     "",
     "Candidate work packages (use only these IDs):",
     ...(candidates.length > 0 ? candidates : ["- (none)"]),
+    ...focusNotes(context),
     "",
     "Time entry activities (ID name, project it applies to):",
     ...(activities.length > 0 ? activities : ["- (none)"]),
@@ -67,4 +74,24 @@ export function buildUserPrompt(context: PromptContext, text: string, hint?: str
     "User message:",
     text,
   ].join("\n");
+}
+
+function focusNotes(context: PromptContext): string[] {
+  const notes: string[] = [];
+
+  if (context.memory) {
+    const project = context.memory.projectName ? ` (${context.memory.projectName})` : "";
+    notes.push(
+      "",
+      `The user was recently working on #${context.memory.id} ${context.memory.subject}${project}.`,
+    );
+  }
+
+  if (context.focus?.workPackageId !== undefined) {
+    notes.push("", `The user's message refers to #${context.focus.workPackageId}. Use it as the target.`);
+  } else if (context.focus?.projectName) {
+    notes.push("", `Candidates are limited to the project the user named: ${context.focus.projectName}.`);
+  }
+
+  return notes;
 }

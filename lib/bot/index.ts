@@ -51,7 +51,10 @@ async function routeMessage(ctx: MessageContext, text: string): Promise<BotReply
   if (command) return runCommand(ctx, command);
 
   const selection = parseSelection(text);
-  if (selection !== undefined) return selectOption(ctx, selection);
+  if (selection !== undefined) {
+    const replies = await selectOption(ctx, selection);
+    if (replies) return replies;
+  }
 
   return runFreeText(ctx, text);
 }

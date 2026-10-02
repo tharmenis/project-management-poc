@@ -236,7 +236,10 @@ describe("proposal flow", () => {
 
     expect(replies[0].text).toContain('"Done" isn\'t a status you can set');
     expect(replies[0].text).toContain("Closed");
-    expect(getDb().select().from(proposalsTable).all()).toHaveLength(0);
+
+    const rows = getDb().select().from(proposalsTable).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("clarifying");
   });
 
   it("asks the user to pick an activity when none was inferred", async () => {
@@ -250,7 +253,7 @@ describe("proposal flow", () => {
 
     expect(replies[0].text).toContain("Which activity should I use?");
     expect(replies[0].text).toContain("On-site");
-    expect(getDb().select().from(proposalsTable).all()).toHaveLength(0);
+    expect(getDb().select().from(proposalsTable).all()[0].status).toBe("clarifying");
   });
 
   it("rejects an activity that is not valid for the work package's project", async () => {
@@ -263,7 +266,7 @@ describe("proposal flow", () => {
     const replies = await handleMessage(ctx(), "2h on the server");
 
     expect(replies[0].text).toContain("Which activity should I use?");
-    expect(getDb().select().from(proposalsTable).all()).toHaveLength(0);
+    expect(getDb().select().from(proposalsTable).all()[0].status).toBe("clarifying");
   });
 
   it("cancels an open proposal with no", async () => {
